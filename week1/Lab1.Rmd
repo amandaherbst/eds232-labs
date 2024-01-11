@@ -1,6 +1,6 @@
 ---
 title: "Lab1"
-author: '{STUDENT NAME}'
+author: 'Amanda Herbst'
 date: "`r Sys.Date()`"
 output:
   pdf_document: default
@@ -89,7 +89,13 @@ Let's take a look at pumpkins sales throughout the year.
 
 ```{r}
 
-# Make a scatter plot of month and price
+# Make a scatter plot of day and price
+pumpkins %>% ggplot(aes(x = day, y = price)) +
+  geom_point(color = "orange") +
+  labs(x = "Day of the Year", 
+       y = "Price ($)", 
+       title = "Average Pumpkin Sales Throughout the Year") +
+  theme_minimal()
 
 ```
 
@@ -108,7 +114,7 @@ pumpkins %>%
 Pumpkins seem to be very hard to weigh consistently, so let's filter them by selecting only pumpkins with the string bushel in the package column and put this in a new data frame "new_pumpkins".
 
 ```{r}
-## View the first few rows of the data
+## New data frame with only bushel packages
 
 pumpkins %>% slice_head(n = 5)
 
@@ -119,7 +125,11 @@ pumpkins %>% distinct(package)
 
 ```{r}
 # Retain only pumpkins with "bushel" in the package column
+# new_pumpkins <- pumpkins %>% 
+#   filter(grepl("bushel", package))
 
+new_pumpkins <- pumpkins %>% 
+  filter(str_detect(package, "bushel"))
 
 ```
 
@@ -163,21 +173,34 @@ theme_set(theme_light())
 # Make a scatter plot of day and price
 new_pumpkins %>% 
   ggplot(mapping = aes(x = day, y = price)) +
-  geom_point(size = 1.6)
+  geom_point(size = 1.6) +
+  labs(title = "Price per bushel of pumpkins throughout the year",
+       x = "Day of Year",
+       y = "Price ($)")
 ```
 
 *Question 3:* Is this a useful plot? Does anything about it surprise you?
 
+**Bushels of pumpkins are only sold in about the last 100 days of the year, so we are missing information at the beginning of the year. Also, there are many different prices for the same day**
+
 How do we make it more useful? To get charts to display useful data, you usually need to group the data somehow.
+
+**It would be more useful to group by day and get an average for each day**
 
 *Question 4:* Group the pumpkins into groups based on the month column and then find the mean price for each month. Plot the results with a bar plot.
 
 Hint: use dplyr::group_by() %\>% summarize()
 
 ```{r}
-# Find the average price of pumpkins per month
-
+# Find the average price of pumpkins per month then plot a bar chart
+new_pumpkins %>%
+  group_by(month) %>% 
+  summarise(mean_price = mean(price)) %>% 
+  ggplot(aes(x = month, y = mean_price)) +
+  geom_col(fill = "orange", alpha = 0.7) +
+  ylab("Pumpkin Price")
 ```
+
 
 ```{r}
 # Find the average price of pumpkins per month then plot a bar chart
@@ -245,6 +268,8 @@ The processed data baked_pumpkins has all its predictors encoded confirming that
 
 *Question 5:* From looking at the baked_pumpkins tibble, how many total cities are represented in the data set?
 
+**Using `unique(baked_pumpkins$city_name)` there are 10 cities represented in the data set**
+
 baked_pumpkins is a data frame that we can perform computations on. For instance, let's try to find a good correlation between two variables to potentially build a good predictive model. We'll use the function cor() to do this.
 
 ```{r}
@@ -255,11 +280,16 @@ cor(baked_pumpkins$package, baked_pumpkins$price)
 *Question 6:* Calculate the correlation between pumpkin price and two other variables in the data set
 
 ```{r}
-#Correlation between price and other vars.
+#Correlation between price and city.
+cor(baked_pumpkins$city_name, baked_pumpkins$price)
 
+#Correlation between price and month.
+cor(baked_pumpkins$month, baked_pumpkins$price)
 ```
 
 *Question 7:* Which of these three variables is most highly correlated with price? Why might this be?
+
+**Package is most highly correlated with price. This could be because the bushels are based on weight, so more weight = higher price**
 
 Now let's visualize a correlation matrix of all the columns using the corrplot package.
 
@@ -409,5 +439,7 @@ plot_results %>%
 Hmm. The model does not do good job of generalizing the relationship between a package and its corresponding price.
 
 *Question 8:* What issues do you see with fitting a linear regression to this data?
+
+**The package type is a categorical variable and therefore not a continuous variable which is not very compatible with a linear regression fit.**
 
 Congratulations, you just created a model that can help predict the price of a few varieties of pumpkins. But you can probably create a better model! To be continued next week...
