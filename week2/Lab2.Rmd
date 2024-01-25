@@ -4,6 +4,66 @@ author: "Amanda Herbst"
 date: "01/18/2024"
 output: pdf_document
 ---
+```{r setup, include=FALSE}
+library("tidyverse")
+library("tidymodels")
+library("janitor")
+library("lubridate")
+
+dat <- read_csv(file = "https://raw.githubusercontent.com/MaRo406/eds-232-machine-learning/main/data/pumpkin-data.csv")
+
+pumpkins <- dat %>% 
+  clean_names(case = "snake") %>% 
+  select(variety, city_name, package, low_price, high_price, date) %>%
+  mutate(date = mdy(date),  
+         day = yday(date),
+         month = month(date)) %>% 
+  mutate(price = (low_price+ high_price)/2)
+
+
+new_pumpkins <- pumpkins %>% 
+  filter(str_detect(package, "bushel")) %>% 
+  mutate(price = case_when(
+    str_detect(package, "1 1/9") ~ price/(1.1),
+    str_detect(package, "1/2") ~ price*2,
+    TRUE ~ price))
+
+# Specify a recipe
+pumpkins_recipe <- recipe(price ~ ., data = new_pumpkins) %>% 
+  step_integer(all_predictors(), zero_based = TRUE)
+
+# Prep the recipe
+pumpkins_prep <- prep(pumpkins_recipe)
+
+# Bake the recipe to extract a preprocessed new_pumpkins data
+baked_pumpkins <- bake(pumpkins_prep, new_data = NULL)
+
+set.seed(123)
+# Split the data into training and test sets
+pumpkins_split <- new_pumpkins %>% 
+  initial_split(prop = 0.8)
+
+
+# Extract training and test data
+pumpkins_train <- training(pumpkins_split)
+pumpkins_test <- testing(pumpkins_split)
+
+# Create a recipe for preprocessing the data
+lm_pumpkins_recipe <- recipe(price ~ package, data = pumpkins_train) %>% 
+  step_integer(all_predictors(), zero_based = TRUE)
+
+
+# Create a linear model specification
+lm_spec <- linear_reg() %>% 
+  set_engine("lm") %>% 
+  set_mode("regression")
+
+# Encode package column
+package_encode <- lm_pumpkins_recipe %>% 
+  prep() %>% 
+  bake(new_data = pumpkins_test) %>% 
+  select(package)
+```
 
 Today we will be continuing the pumpkin case study from last week. We will be using the data that you cleaned and split last time (pumpkins_train) and will be comparing our results today to those you have already obtained. Open and run your Lab 1.Rmd as a first step so those objects are available in your Environment.
 
@@ -142,16 +202,50 @@ cor(baked_pumpkins$city_name, baked_pumpkins$price)
   
 ```{r}
 # Create a recipe for preprocessing the data
-lm_pumpkins_recipe <- recipe(price ~ city_name, data = pumpkins_train) %>% 
-  step_integer(all_predictors(), zero_based = TRUE) %>% 
-  step_poly(all_predictors(), degree = 3)
-
+city_pumpkins_recipe <- recipe(price ~ city_name, data = pumpkins_train) %>% 
+  step_integer(all_predictors(), zero_based = TRUE)
 
 # build polynomial model specification
-lm_spec <- linear_reg() %>% 
+city_spec <- linear_reg() %>% 
   set_engine("lm") %>% 
   set_mode("regression")
 
+# bundle recipe and model specification into workflow
+city_wf <- workflow() %>% 
+  add_recipe(city_pumpkins_recipe) %>% 
+  add_model(city_spec)
+
+# create model by fitting the workflow
+city_wf_fit <- fit(data = pumpkins_train, object = city_wf)
+
+# evaluate model perfomance on test data
+city_results <- city_wf_fit %>% predict(new_data = pumpkins_test) %>% 
+  bind_cols(pumpkins_test %>% select(c(city_name, price))) %>% 
+  relocate(.pred, .after = last_col())
+
+metrics(data = city_results, truth = price, estimate = .pred)
+
+# create visualization of model performance
+# Encode city names column
+city_encode <- city_pumpkins_recipe %>% 
+  prep() %>% 
+  bake(new_data = pumpkins_test) %>% 
+  select(city_name)
+
+# Bind encoded city name column to the results
+city_results <- city_results %>% 
+  bind_cols(city_encode %>% 
+              rename(city_integer = city_name)) %>% 
+  relocate(city_integer, .after = city_name)
+
+# Make a scatter plot
+city_results %>%
+  ggplot(mapping = aes(x = city_integer, y = price)) +
+   geom_point(size = 1.6) +
+   # Overlay a line of best fit
+   geom_line(aes(y = .pred), color = "orange", linewidth = 1.2) +
+   labs(x = "City Integer",
+        y = "Pumpkin Price")
 ```
 
 Lab 2 due 1/24 at 11:59 PM

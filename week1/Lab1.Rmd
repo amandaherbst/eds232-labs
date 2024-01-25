@@ -93,7 +93,7 @@ Let's take a look at pumpkins sales throughout the year.
 pumpkins %>% ggplot(aes(x = day, y = price)) +
   geom_point(color = "orange") +
   labs(x = "Day of the Year", 
-       y = "Price ($)", 
+       y = "Pumpkin Price", 
        title = "Average Pumpkin Sales Throughout the Year") +
   theme_minimal()
 
@@ -125,8 +125,6 @@ pumpkins %>% distinct(package)
 
 ```{r}
 # Retain only pumpkins with "bushel" in the package column
-# new_pumpkins <- pumpkins %>% 
-#   filter(grepl("bushel", package))
 
 new_pumpkins <- pumpkins %>% 
   filter(str_detect(package, "bushel"))
@@ -200,7 +198,6 @@ new_pumpkins %>%
   geom_col(fill = "orange", alpha = 0.7) +
   ylab("Pumpkin Price")
 ```
-
 
 ```{r}
 # Find the average price of pumpkins per month then plot a bar chart
@@ -440,6 +437,6 @@ Hmm. The model does not do good job of generalizing the relationship between a p
 
 *Question 8:* What issues do you see with fitting a linear regression to this data?
 
-**The package type is a categorical variable and therefore not a continuous variable which is not very compatible with a linear regression fit.**
+**The package type is a categorical variable and therefore not a continuous variable which is not very compatible with a linear regression fit. Also, this line is underfitting the data and is therefore missing the true data signal.**
 
 Congratulations, you just created a model that can help predict the price of a few varieties of pumpkins. But you can probably create a better model! To be continued next week...
