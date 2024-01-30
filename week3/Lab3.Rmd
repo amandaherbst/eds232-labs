@@ -3,10 +3,14 @@ title: "Herbst_Lab3"
 author: "Amanda Herbst"
 date: "2024-01-25"
 output: 
+  pdf_document:
+    latex_engine: xelatex
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
+# load packages
 library(tidyverse)
 library(rsample)
 library(glmnet)
@@ -23,10 +27,14 @@ The data set provided includes variables related to the sex, physical dimensions
 Pull the abalone data from Github and take a look at it.
 
 ```{r data}
-abdat<- read_csv(file = "https://raw.githubusercontent.com/MaRo406/eds-232-machine-learning/main/data/abalone-data.csv")
+# read in abalone data
+abdat<- read_csv(file = "https://raw.githubusercontent.com/MaRo406/eds-232-machine-learning/main/data/abalone-data.csv",
+                 show_col_types = FALSE)
+
+# glimpse raw data
 glimpse(abdat)
 
-# remove ...1 column
+# remove ...1 column which is just an index
 abdat <- abdat %>% 
   select(-...1)
 ```
@@ -40,7 +48,10 @@ abdat <- abdat %>%
 set.seed(123) #set a seed for reproducibility
 split <- initial_split(abdat, prop = 0.7)
 
+# training data
 ab_train <-  training(split)
+
+# testing data
 ab_test  <-  testing(split)
 ```
 
@@ -52,8 +63,7 @@ We'll follow our text book's lead and use the caret package in our approach to t
 -   ***Question 2***. Use the model.matrix() function to create a predictor matrix, x, and assign the Rings variable to an outcome vector, y.
 
 ```{r}
-# Create training feature matrices using model.matrix() (auto encoding of categorical variables)
-
+# Create predictor matrix for outcome variable Rings (auto encoding of categorical variables)
 x <- model.matrix(Rings ~ ., data = ab_train)[,-1]
 ```
 
@@ -79,7 +89,7 @@ In lecture we learned about two methods of estimating our model's generalization
 -   ***Question 4***. This time fit a ridge regression model and a lasso model, both with using cross validation. The glmnet package kindly provides a cv.glmnet() function to do this (similar to the glmnet() function that we just used). Use the alpha argument to control which type of model you are running. Plot the results.
 
 ```{r}
-# Apply CV ridge regression to abolone training data.
+# Apply CV ridge regression to abalone training data.
 ab_cv_ridge <- cv.glmnet(
   x = x,
   y = ab_train$Rings,
@@ -102,6 +112,7 @@ plot(ab_cv_lasso, main = "Lasso CV penalty\n\n")
 
 -   ***Question 5***. Interpret the graphs. What is being displayed on the axes here? How does the performance of the models change with the value of lambda?
 
+**On the y-axes is mean-squared error of each model, and on the x-axes is the log of lambda, a tuning parameter that is used to minimize SSE and prevent overfitting. The vertical dotted line on the left indicates the optimal lambda based on where the minimum MSE occurs. The second dotted line (on the right) indicates the lambda at 1 standard error above the minimum MSE. This second line indicates a lambda with a low MSE while also increasing the parsimony of the model. The ridge regularization model appears to have a slighly higher MSE than lasso and, due to a higher sloped curve at the start, a smaller range in log(lambda) from minimum MSE to 1 standard error above. For the ridge model, the MSE increases at close to a constant rate as log(lambda) increases. In contrast, the MSE of the lasso model increase exponentially with increases in log(lambda).**
 
 
 -   ***Question 6***. Inspect the ridge model object you created with cv.glmnet(). The \$cvm column shows the MSEs for each CV fold. What is the minimum MSE? What is the value of lambda associated with this MSE minimum?
@@ -114,7 +125,7 @@ min(ab_cv_ridge$cvm) # 5.1
 # lambda for this min MSE
 ab_cv_ridge$lambda.min # 0.20
 ```
-
+**The minimum MSE for the ridge model is about 5.1 and the lambda at that minimum is about 0.2.** 
 
 -   ***Question 7***. Do the same for the lasso model. What is the minimum MSE? What is the value of lambda associated with this MSE minimum?
 
@@ -125,7 +136,7 @@ min(ab_cv_lasso$cvm) # 4.8
 # lambda for this min MSE
 ab_cv_lasso$lambda.min # 0.002
 ```
-
+**The minimum MSE for the lasso model is about 4.8 and teh lambda at that minimum is about 0.002**
 
 Data scientists often use the "one-standard-error" rule when tuning lambda to select the best model. This rule tells us to pick the most parsimonious model (fewest number of predictors) while still remaining within one standard error of the overall minimum cross validation error. The cv.glmnet() model object has a column that automatically finds the value of lambda associated with the model that produces an MSE that is one standard error from the MSE minimum (\$lambda.1se).
 
@@ -135,8 +146,8 @@ Data scientists often use the "one-standard-error" rule when tuning lambda to se
 # No. of coef | 1-SE MSE
 ab_cv_lasso$nzero[ab_cv_lasso$lambda == ab_cv_lasso$lambda.1se]
 ```
-**There are 5 predictors associated with the lasso model at one standard error above the **
+**There are 5 predictors associated with the lasso model at one standard error above the minimum MSE**
 
 -   ***Question 9*****.** Which regularized regression worked better for this task, ridge or lasso? Explain your answer.
 
-
+**The lasso regularized regression works better for this task because it minimizes the mean squared error better (4.8 compared to 5.1 for ridge). Additionally, it pares down the number of predictor variables to 5 which is better because it helps to avoid overfitting and any correlation between variables.**
